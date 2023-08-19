@@ -9,6 +9,7 @@
 #include "uart.h"
 #include "max72xx.h"
 #include "millis.h"
+#include "characters.h"
 
 
 #define	SCL 5
@@ -48,6 +49,7 @@ void readJoystick(void);
 void enterpretJoystick(snakePosition snakePositions[128]);
 void snakeGraphics(snakePosition snakePositions[128], unsigned char *randomFoodX, unsigned char *randomFoodY, unsigned char *isRandomFoodEaten);
 void setupADC(void);
+void text(char *string[40]);
 
 /*
 =====================================================================================================================================================
@@ -59,13 +61,13 @@ void setupADC(void);
 int main(){
 
     snakePosition snakePositions[128];
-    
     initPorts();
     sei();  
 	init_serial();
 	max7219_init();
-    millis_init();
-    
+    //millis_init();
+    //text(" Hit Joystick To Run");
+    //while(true){}
 
     //unsigned char horisontal = 128, vertical = 128;
 
@@ -85,13 +87,79 @@ int main(){
         snakeGraphics(snakePositions, &randomFoodX, &randomFoodY, &isRandomFoodEaten);          
         snakesRandomFood(snakePositions, &randomFoodX, &randomFoodY, &isRandomFoodEaten);
         max7219b_out();      
-        _delay_ms(1000);
+        _delay_ms(450);
         readJoystick();
         enterpretJoystick(snakePositions);
 	}
 
 	return 0;
 }
+
+/*
+=====================================================================================================================================================
+========================  TEXT SCROLLERS  ============================================================================================================
+=====================================================================================================================================================
+*/
+
+void text(char *string[40]){
+    char textGame[40];
+    char textScrollbox[40][8];
+    //strcpy(textGame, *string);
+
+    for(uint8_t charPos = 0; charPos < 40; charPos++){
+        for(uint8_t charLineElement = 0; charLineElement < 8; charLineElement++){
+            char character = textGame[charPos];
+            textScrollbox[charPos][charLineElement] = 0x00;
+        }
+    }    
+
+
+    unsigned char posCnt = 0;
+    unsigned char posOffset = 0;
+    unsigned char strLength = strlen(string);
+    bool isStartTerm = true;
+    while(true){
+
+        if(isStartTerm == true || posOffset >= 8 * ((strlen(string)) + 1)){
+            
+            isStartTerm = false;
+            posOffset = 0;
+            strcpy(textGame, string);
+            
+
+            for(uint8_t charPos = 0; charPos < strlen(textGame); charPos++){
+                for(uint8_t charLineElement = 0; charLineElement < 8; charLineElement++){
+                    char character = textGame[charPos];
+                    textScrollbox[charPos][charLineElement] = myCharacters[character][charLineElement];           
+                }
+            }
+        }
+        
+        for(uint8_t charPos = 0; charPos < strlen(textGame); charPos++){
+            for(uint8_t charLineElement = 0; charLineElement < 8; charLineElement++){
+                for(uint8_t charLinePos = 0; charLinePos < 32; charLinePos++){
+                    if(((textScrollbox[charPos][charLineElement] >> charLinePos) & 0x01) == 0x01){
+                        max7219b_set(charLinePos + charPos * 8 - posOffset + 8, charLineElement);
+                        max7219b_out();
+                    } 
+                    else{ 
+                        max7219b_clr(charLinePos + charPos * 8 - posOffset + 8, charLineElement);
+                        max7219b_out();
+                    } 
+                }
+            }
+        }
+        //_delay_ms(20);
+        for(unsigned char y = 0; y < 8; y++){
+            for(unsigned x = 0; x < 16; x++){
+                max7219b_clr(x, y);
+                max7219b_out();
+            }
+        }
+        posOffset++; 
+    }
+}
+
 
 /*
 =====================================================================================================================================================
@@ -155,7 +223,7 @@ void snakeGraphics(snakePosition snakePositions[128], unsigned char *randomFoodX
         if((snakePositions[snakeBodyIndex].x == snakePositions[0].x) && (snakePositions[snakeBodyIndex].y == snakePositions[0].y)){
             for(unsigned char repeatIndex = 0; repeatIndex < 3; repeatIndex++)
             {
-                for(unsigned char iEatMySelfIndex = 0; iEatMySelfIndex < snakeLength; iEatMySelfIndex++){
+                for(unsigned char iEatMySelfIndex = 0; iEatMySelfIndex <= snakeLength; iEatMySelfIndex++){
                     if(iEatMySelfIndex == 0){
                         for(uint8_t iEatMySelfIndexHead = 0; iEatMySelfIndexHead < 5; iEatMySelfIndexHead++){
                             max7219b_clr((snakePositions[iEatMySelfIndex].x), (snakePositions[iEatMySelfIndex].y));
@@ -174,7 +242,7 @@ void snakeGraphics(snakePosition snakePositions[128], unsigned char *randomFoodX
                     _delay_ms(50);
                 }
             }
-            while(true){}
+            while(true) text(" END");
         }
     }
 
