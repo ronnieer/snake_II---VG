@@ -34,13 +34,11 @@ typedef struct{
 }snakePosition;
 
 typedef enum{
-    PRE_GAME,
+    GAME,
     END_GAME,
     RUN_GAME,
-    WIN_GAME
+    WIN
 }GameStatus;
-
-GameStatus gameStatus;
 
 /*
 =====================================================================================================================================================
@@ -51,17 +49,15 @@ GameStatus gameStatus;
 unsigned char snakeLength = 2;
 unsigned char horisontal = 128;
 unsigned char vertical = 128;
-bool isBreakMessageFlag = false;
 
 void initPorts(void);
 void int1Interrupt(void);
 void snakesRandomFood(snakePosition snakePositions[128], unsigned char *randomFoodX, unsigned char *randomFoodY, unsigned char *isRandomFoodEaten);
 void readJoystick(void);
-void printText(char *string[40]);
-void clearMax7219(void);
 void enterpretJoystick(snakePosition snakePositions[128]);
 void snakeGraphics(snakePosition snakePositions[128], unsigned char *randomFoodX, unsigned char *randomFoodY, unsigned char *isRandomFoodEaten);
 void setupADC(void);
+void text(char *string[40]);
 
 /*
 =====================================================================================================================================================
@@ -72,96 +68,52 @@ void setupADC(void);
 
 int main(){
 
-    
     snakePosition snakePositions[128];
     initPorts();
     int1Interrupt();
-    sei();  
+    sei();
 	init_serial();
 	max7219_init();
+
     int cnt = 0;
-    // for(int cnt = 0; cnt < 128; cnt++){
-    //     snakePositions[cnt].x = 200;
-    //     snakePositions[cnt].y = 200;
-    // }
+    for(int cnt = 0; cnt < 128; cnt++){
+        snakePositions[cnt].x = 200;
+        snakePositions[cnt].y = 200;
+    }
     
-    // snakePositions[0].x = 0;
-    // snakePositions[0].y = 0;
-    // unsigned char *isJoyStickUpdate = 1;
-    // unsigned char randomFoodX = 16;
-    // unsigned char randomFoodY = 8;
-    // int8_t *isRandomFoodEaten = 1;
-    gameStatus = PRE_GAME;
+    snakePositions[0].x = 0;
+    snakePositions[0].y = 0;
+    unsigned char *isJoyStickUpdate = 1;
+    unsigned char randomFoodX = 16;
+    unsigned char randomFoodY = 8;
+    int8_t *isRandomFoodEaten = 1;
+    RUN_GAME;
 	while(true){
-
-/*
------------------------------------------------------------------------------------------------------------------------------------------------------
-------------------------  PRE GAME MESSAGE, WAITING FOR GAME START  ---------------------------------------------------------------------------------
------------------------------------------------------------------------------------------------------------------------------------------------------
-*/
-
-        while(gameStatus == PRE_GAME){
-            printText(" GAME");
-        }
-
-/*
------------------------------------------------------------------------------------------------------------------------------------------------------
-------------------------  RUN GAME  -----------------------------------------------------------------------------------------------------------------
------------------------------------------------------------------------------------------------------------------------------------------------------
-*/
-
-        for(int cnt = 0; cnt < 128; cnt++){     // SET SNAKE ARRAY FOR START (SNAKE BODY PARTS)
-            snakePositions[cnt].x = 200;
-            snakePositions[cnt].y = 200;
-        }    
-
-        snakePositions[0].x = 0;
-        snakePositions[0].y = 0;
-        unsigned char *isJoyStickUpdate = 1;
-        unsigned char randomFoodX = 16;
-        unsigned char randomFoodY = 8;
-        int8_t *isRandomFoodEaten = 1;        
-
-        while(true){
-            snakeGraphics(snakePositions, &randomFoodX, &randomFoodY, &isRandomFoodEaten);
-            if(gameStatus == END_GAME || gameStatus == WIN_GAME) break;
+        while(!GAME){
+            text(" GAME");
+        }   
+        while(RUN_GAME){     
+            snakeGraphics(snakePositions, &randomFoodX, &randomFoodY, &isRandomFoodEaten);          
             snakesRandomFood(snakePositions, &randomFoodX, &randomFoodY, &isRandomFoodEaten);
             max7219b_out();      
-            _delay_ms(700);
+            _delay_ms(450);
             readJoystick();
             enterpretJoystick(snakePositions);
         }
-        isBreakMessageFlag = false;
         unsigned char counter = 0;
-
-/*
------------------------------------------------------------------------------------------------------------------------------------------------------
-------------------------  GAME WON, SCROLL WIN ONES  ------------------------------------------------------------------------------------------------
------------------------------------------------------------------------------------------------------------------------------------------------------
-*/
-
-        while(gameStatus == WIN_GAME){// && !isBreakMessageFlag){
-            printText(" WIN");
-            gameStatus = PRE_GAME;
+        while(WIN && counter < 2){
+            text(" WIN");
+            counter++;
         }
-
-/*
------------------------------------------------------------------------------------------------------------------------------------------------------
-------------------------  GAME LOST, SCROLL END ONES  ------------------------------------------------------------------------------------------------
------------------------------------------------------------------------------------------------------------------------------------------------------
-*/
-
-        isBreakMessageFlag = false;
         counter = 0;
-        while(gameStatus == END_GAME){ // && !isBreakMessageFlag){
-            printText(" END");
-            gameStatus = PRE_GAME;
-        }        
+        while(END_GAME && counter < 2){
+            text(" WIN");
+            counter++;
+        }
 	}
 
 	return 0;
 }
-
 
 /*
 =====================================================================================================================================================
@@ -177,7 +129,7 @@ void int1Interrupt(void){
     EIMSK |= 0x02;  //EXTERNAL PIN INTERRUPT ENABLED
     PCICR |= 0X02;  //PIN CHANGE ITERRUPT CONTROL REGISTER
     PCIFR |= 0x02;
-    PCMSK1 |= 0x04; //PORTD BIT 5 = INT1
+    PCMSK1 |= 0x04; //PORTD BIT 5 = INT0
     EIFR = 0x00;
     SREG |= 0x80;   //Global Interrupt ENA
 }
@@ -188,7 +140,7 @@ void int1Interrupt(void){
 =====================================================================================================================================================
 */
 
-void printText(char *string[40]){
+void text(char *string[40]){
     char textGame[40];
     char textScrollbox[40][8];
     //strcpy(textGame, *string);
@@ -205,8 +157,8 @@ void printText(char *string[40]){
     unsigned char posOffset = 0;
     unsigned char strLength = strlen(string);
     bool isStartTerm = true;
-    EIFR &= 0x01;
-    while(true){
+    //while(true){
+
         if(isStartTerm == true || posOffset >= 8 * ((strlen(string)) + 1)){
             
             isStartTerm = false;
@@ -236,24 +188,15 @@ void printText(char *string[40]){
                 }
             }
         }
-        clearMax7219();
-        posOffset++;
-        if(isBreakMessageFlag == true){
-            isBreakMessageFlag = false;
-            break;
+        //_delay_ms(20);
+        for(unsigned char y = 0; y < 8; y++){
+            for(unsigned x = 0; x < 16; x++){
+                max7219b_clr(x, y);
+                max7219b_out();
+            }
         }
-        if(posOffset >= 8 * (strLength + 1)) break;
-    }
-
-}
-
-void clearMax7219(void){
-    for(unsigned char y = 0; y < 8; y++){
-        for(unsigned x = 0; x < 16; x++){
-            max7219b_clr(x, y);
-            max7219b_out();
-        }
-    }
+        posOffset++; 
+    //}
 }
 
 
@@ -311,16 +254,36 @@ void snakeGraphics(snakePosition snakePositions[128], unsigned char *randomFoodX
 
     if((snakePositions[0].x == *randomFoodX) && (snakePositions[0].y == *randomFoodY) && (*isRandomFoodEaten == 0)){
         snakeLength++;
-        if(snakeLength > 5){
-            clearMax7219();
-            gameStatus = WIN_GAME;
-            return;
-        }       
         max7219b_set(snakePositions[0].x, snakePositions[0].y);
         max7219b_out();                  
         *isRandomFoodEaten = 1; 
     }
-
+    for(unsigned char snakeBodyIndex = 2; snakeBodyIndex < snakeLength; snakeBodyIndex++){
+        if((snakePositions[snakeBodyIndex].x == snakePositions[0].x) && (snakePositions[snakeBodyIndex].y == snakePositions[0].y)){
+            for(unsigned char repeatIndex = 0; repeatIndex < 3; repeatIndex++)
+            {
+                for(unsigned char iEatMySelfIndex = 0; iEatMySelfIndex <= snakeLength; iEatMySelfIndex++){
+                    if(iEatMySelfIndex == 0){
+                        for(uint8_t iEatMySelfIndexHead = 0; iEatMySelfIndexHead < 5; iEatMySelfIndexHead++){
+                            max7219b_clr((snakePositions[iEatMySelfIndex].x), (snakePositions[iEatMySelfIndex].y));
+                            max7219b_out();
+                            _delay_ms(250);
+                            max7219b_set((snakePositions[iEatMySelfIndex].x), (snakePositions[iEatMySelfIndex].y));
+                            max7219b_out();
+                            _delay_ms(250);
+                        }
+                    }
+                    max7219b_clr((snakePositions[iEatMySelfIndex].x), (snakePositions[iEatMySelfIndex].y));
+                    max7219b_out();
+                    _delay_ms(50);
+                    max7219b_set((snakePositions[iEatMySelfIndex].x), (snakePositions[iEatMySelfIndex].y));
+                    max7219b_out();
+                    _delay_ms(50);
+                }
+            }
+            while(true) text(" END");
+        }
+    }
 
 /*
 -----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -329,21 +292,7 @@ void snakeGraphics(snakePosition snakePositions[128], unsigned char *randomFoodX
 */
 
     max7219b_clr(snakePositions[snakeLength].x, snakePositions[snakeLength].y);
-    max7219b_out();     
-
-/*
------------------------------------------------------------------------------------------------------------------------------------------------------
-------------------------  CHECK FOR HEAD NOT CROSSING BODY  -----------------------------------------------------------------------------------------
------------------------------------------------------------------------------------------------------------------------------------------------------
-*/    
-
-    for(unsigned char snakeBodyIndex = 2; snakeBodyIndex < snakeLength; snakeBodyIndex++){
-        if((snakePositions[snakeBodyIndex].x == snakePositions[0].x) && (snakePositions[snakeBodyIndex].y == snakePositions[0].y)){
-            clearMax7219();
-            gameStatus = END_GAME;
-            return;
-        }
-    }
+    max7219b_out(); 
 }
 
 /*
@@ -387,7 +336,7 @@ void initPorts(void)
 {
     DDRB = 0xFF;  
     DDRD = 0x01;
-    PORTD |= 0x08;         
+    PORTD |= 0x08;
 }
 
 /*
@@ -451,9 +400,6 @@ void readJoystick(void)
 */
 
 ISR(INT1_vect){
-    clearMax7219();
-    if(gameStatus == PRE_GAME) isBreakMessageFlag = true;
-    gameStatus = RUN_GAME;
-    snakeLength = 2;
-    EIFR &= 0x01;
+    RUN_GAME;
+    EIFR = 0x00;
 }

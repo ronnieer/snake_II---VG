@@ -1,9 +1,0 @@
-{
-    "makefile.launchConfigurations": [
-        {
-            "cwd": "c:\\avr\\snake_II - VG",
-            "binaryPath": "c:\\avr\\snake_II - VG\\avrdemo.elf",
-            "binaryArgs": []
-        }
-    ]
-}
