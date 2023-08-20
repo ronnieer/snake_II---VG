@@ -22,6 +22,16 @@ const scanlimit = 0x0B;
 const decodeMode = 0x09;
 const shutdown = 0x0C;
 
+
+
+
+
+
+unsigned char setSnakeLength = 10;
+
+
+
+
 /*
 =====================================================================================================================================================
 ========================  SNAKE'S BODY STRUCTURE DECLARATION  =======================================================================================
@@ -32,6 +42,12 @@ typedef struct{
     unsigned char x;
     unsigned char y;
 }snakePosition;
+
+/*
+=====================================================================================================================================================
+========================  SNAKE'S GAME STATUS CYCLE ENUMERATION  ====================================================================================
+=====================================================================================================================================================
+*/
 
 typedef enum{
     PRE_GAME,
@@ -44,17 +60,32 @@ GameStatus gameStatus;
 
 /*
 =====================================================================================================================================================
+========================  SNAKE'S JOYSTICK POSITIONS ENUMERATION  ===================================================================================
+=====================================================================================================================================================
+*/
+
+typedef enum{
+    JOYSTICK_UP,
+    JOYSTICK_DOWN,
+    JOYSTICK_LEFT,
+    JOYSTICK_RIGHT
+}JoyStick;
+
+JoyStick joyStickPos;
+
+/*
+=====================================================================================================================================================
 ========================  FUNCTIONS DECLARATION  ====================================================================================================
 =====================================================================================================================================================
 */
 
 unsigned char snakeLength = 2;
-unsigned char horisontal = 128;
-unsigned char vertical = 128;
 bool isBreakMessageFlag = false;
 
 void initPorts(void);
 void int1Interrupt(void);
+void int1InterruptOff(void);
+void int1InterruptOn(void);
 void snakesRandomFood(snakePosition snakePositions[128], unsigned char *randomFoodX, unsigned char *randomFoodY, unsigned char *isRandomFoodEaten);
 void readJoystick(void);
 void printText(char *string[40]);
@@ -80,17 +111,6 @@ int main(){
 	init_serial();
 	max7219_init();
     int cnt = 0;
-    // for(int cnt = 0; cnt < 128; cnt++){
-    //     snakePositions[cnt].x = 200;
-    //     snakePositions[cnt].y = 200;
-    // }
-    
-    // snakePositions[0].x = 0;
-    // snakePositions[0].y = 0;
-    // unsigned char *isJoyStickUpdate = 1;
-    // unsigned char randomFoodX = 16;
-    // unsigned char randomFoodY = 8;
-    // int8_t *isRandomFoodEaten = 1;
     gameStatus = PRE_GAME;
 	while(true){
 
@@ -111,12 +131,13 @@ int main(){
 */
 
         for(int cnt = 0; cnt < 128; cnt++){     // SET SNAKE ARRAY FOR START (SNAKE BODY PARTS)
-            snakePositions[cnt].x = 200;
+        snakePositions[cnt].x = 200;            // SET OUTSIDE SCREEN
             snakePositions[cnt].y = 200;
         }    
 
-        snakePositions[0].x = 0;
-        snakePositions[0].y = 0;
+        snakePositions[0].x = rand() % 14 + 1;
+        snakePositions[0].y = rand() % 6 + 1;
+        joyStickPos = rand() % 4;
         unsigned char *isJoyStickUpdate = 1;
         unsigned char randomFoodX = 16;
         unsigned char randomFoodY = 8;
@@ -127,7 +148,7 @@ int main(){
             if(gameStatus == END_GAME || gameStatus == WIN_GAME) break;
             snakesRandomFood(snakePositions, &randomFoodX, &randomFoodY, &isRandomFoodEaten);
             max7219b_out();      
-            _delay_ms(700);
+            _delay_ms(350);
             readJoystick();
             enterpretJoystick(snakePositions);
         }
@@ -140,7 +161,7 @@ int main(){
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 */
 
-        while(gameStatus == WIN_GAME){// && !isBreakMessageFlag){
+        while(gameStatus == WIN_GAME){
             printText(" WIN");
             gameStatus = PRE_GAME;
         }
@@ -153,7 +174,7 @@ int main(){
 
         isBreakMessageFlag = false;
         counter = 0;
-        while(gameStatus == END_GAME){ // && !isBreakMessageFlag){
+        while(gameStatus == END_GAME){
             printText(" END");
             gameStatus = PRE_GAME;
         }        
@@ -162,24 +183,31 @@ int main(){
 	return 0;
 }
 
-
 /*
 =====================================================================================================================================================
-========================  INT0 INTERRUPT ENA  =======================================================================================================
+========================  INT0 INTERRUPT  ===========================================================================================================
 =====================================================================================================================================================
 */
 
 void int1Interrupt(void){
     SREG &= ~0x80;
-    // MCUCR |= 0x01;
-    // MCUCR |= 0x02;
     EICRA |= 0x0C;  //INTERRUPT 1, FALLING EDGE
     EIMSK |= 0x02;  //EXTERNAL PIN INTERRUPT ENABLED
     PCICR |= 0X02;  //PIN CHANGE ITERRUPT CONTROL REGISTER
     PCIFR |= 0x02;
     PCMSK1 |= 0x04; //PORTD BIT 5 = INT1
-    EIFR = 0x00;
+    EIFR &= 0x01;
     SREG |= 0x80;   //Global Interrupt ENA
+}
+
+void int1InterruptOff(void){
+    EIFR &= 0x01;
+    EIMSK &= ~0x02;
+}
+
+void int1InterruptOn(void){
+    EIMSK |= 0x02;
+    EIFR &= 0x01;
 }
 
 /*
@@ -191,7 +219,6 @@ void int1Interrupt(void){
 void printText(char *string[40]){
     char textGame[40];
     char textScrollbox[40][8];
-    //strcpy(textGame, *string);
 
     for(uint8_t charPos = 0; charPos < 40; charPos++){
         for(uint8_t charLineElement = 0; charLineElement < 8; charLineElement++){
@@ -199,7 +226,6 @@ void printText(char *string[40]){
             textScrollbox[charPos][charLineElement] = 0x00;
         }
     }    
-
 
     unsigned char posCnt = 0;
     unsigned char posOffset = 0;
@@ -213,7 +239,6 @@ void printText(char *string[40]){
             posOffset = 0;
             strcpy(textGame, string);
             
-
             for(uint8_t charPos = 0; charPos < strlen(textGame); charPos++){
                 for(uint8_t charLineElement = 0; charLineElement < 8; charLineElement++){
                     char character = textGame[charPos];
@@ -256,7 +281,6 @@ void clearMax7219(void){
     }
 }
 
-
 /*
 =====================================================================================================================================================
 ========================  JOYSTICK MOVEMENTS  =======================================================================================================
@@ -265,19 +289,19 @@ void clearMax7219(void){
 
 void enterpretJoystick(snakePosition snakePositions[128]){
 
-    if((horisontal > 192) && (snakePositions[0].x < 15)){
+    if(joyStickPos == JOYSTICK_RIGHT){
         snakePositions[0].x++;
     } 
 
-    if((horisontal < 64) && (snakePositions[0].x >= 1)){
+    if(joyStickPos == JOYSTICK_LEFT){
         snakePositions[0].x--;
     }
 
-    if((vertical > 192) && (snakePositions[0].y < 7)){
+    if(joyStickPos == JOYSTICK_DOWN){
         snakePositions[0].y++;
     }
 
-    if((vertical < 64) && (snakePositions[0].y >= 1)){
+    if(joyStickPos == JOYSTICK_UP){
         snakePositions[0].y--;
     }    
 }
@@ -292,7 +316,7 @@ void snakeGraphics(snakePosition snakePositions[128], unsigned char *randomFoodX
 
 /*
 -----------------------------------------------------------------------------------------------------------------------------------------------------
-------------------------  SET SNAKE HEAD AND COPY BODY SEGMENTS BY ITERATION  -----------------------------------------------------------------------
+------------------------  SET SNAKE HEAD COPY TO BODY SEGMENTS BY ITERATION  _-----------------------------------------------------------------------
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 */
 
@@ -311,7 +335,7 @@ void snakeGraphics(snakePosition snakePositions[128], unsigned char *randomFoodX
 
     if((snakePositions[0].x == *randomFoodX) && (snakePositions[0].y == *randomFoodY) && (*isRandomFoodEaten == 0)){
         snakeLength++;
-        if(snakeLength > 5){
+        if(snakeLength > setSnakeLength){
             clearMax7219();
             gameStatus = WIN_GAME;
             return;
@@ -343,6 +367,22 @@ void snakeGraphics(snakePosition snakePositions[128], unsigned char *randomFoodX
             gameStatus = END_GAME;
             return;
         }
+        else if((snakePositions[0].x == snakePositions[3].x) && (snakePositions[0].y == snakePositions[3].y)){
+            clearMax7219();
+            gameStatus = END_GAME;
+            return;            
+        }
+    }
+
+/*
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------  CHECK FOR HEAD NOT LEAVING SCREEN  ----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+*/  
+
+    if(!(snakePositions[0].x >= 0 && snakePositions[0].x <= 15) || !(snakePositions[0].y >= 0 && snakePositions[0].y <= 7)){
+        clearMax7219();
+        gameStatus = END_GAME;
     }
 }
 
@@ -407,7 +447,7 @@ void readJoystick(void)
   
     while(true){ 
         if((ADCSRA & 0x10) == 0x10){
-            horisontalLocal = ADCH; // RETURN RESULT WHEN INTERUPT FLAG
+            horisontalLocal = ADCH;                     // RETURN RESULT WHEN INTERUPT FLAG
             break;
         }
     }                                                    
@@ -420,28 +460,15 @@ void readJoystick(void)
 
     while(true){ 
         if((ADCSRA & 0x10) == 0x10){
-            vericalLocal = ADCH;   // RETURN RESULT WHEN INTERUPT FLAG
+            vericalLocal = ADCH;                        // RETURN RESULT WHEN INTERUPT FLAG
             break;
         }
     }
-    //if(horisontalLocal >= 64 && horisontal <= 192){} 
-    //else if(vericalLocal >= 64 && vertical <= 192){} 
-    if(horisontalLocal < 64 && (vericalLocal >= 64 && vericalLocal <= 192)){
-        horisontal = 0;
-        vertical = 128;
-    } 
-    else if(horisontalLocal > 192 && (vericalLocal >= 64 && vericalLocal <= 192)){
-        horisontal = 255;
-        vertical = 128;
-    }
-    else if(vericalLocal < 64 && (horisontalLocal >= 64 && horisontalLocal <= 192)){
-        horisontal = 128;
-        vertical = 0;
-    }
-    else if(vericalLocal > 192 && (horisontalLocal >= 64 && horisontalLocal <= 192)){
-        horisontal = 128;
-        vertical = 255;
-    }
+
+    if(horisontalLocal < 43 && (vericalLocal >= 43 && vericalLocal <= 213)) joyStickPos = JOYSTICK_LEFT;
+    else if(horisontalLocal > 213 && (vericalLocal >= 43 && vericalLocal <= 213)) joyStickPos = JOYSTICK_RIGHT;
+    else if(vericalLocal < 43 && (horisontalLocal >= 43 && horisontalLocal <= 213)) joyStickPos = JOYSTICK_UP;
+    else if(vericalLocal > 213 && (horisontalLocal >= 43 && horisontalLocal <= 213)) joyStickPos = JOYSTICK_DOWN;
 }
 
 /*
@@ -451,8 +478,10 @@ void readJoystick(void)
 */
 
 ISR(INT1_vect){
-    clearMax7219();
-    if(gameStatus == PRE_GAME) isBreakMessageFlag = true;
+    if(gameStatus == PRE_GAME){
+        clearMax7219();
+        isBreakMessageFlag = true;
+    } 
     gameStatus = RUN_GAME;
     snakeLength = 2;
     EIFR &= 0x01;
