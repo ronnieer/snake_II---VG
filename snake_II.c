@@ -232,7 +232,7 @@ void printText(char *string[40]){
     unsigned char strLength = strlen(string);
     bool isStartTerm = true;
     EIFR &= 0x01;
-    while(true){
+
         if(isStartTerm == true || posOffset >= 8 * ((strlen(string)) + 1)){
             
             isStartTerm = false;
@@ -246,10 +246,12 @@ void printText(char *string[40]){
                 }
             }
         }
+
+    while(true){
         
         for(uint8_t charPos = 0; charPos < strlen(textGame); charPos++){
             for(uint8_t charLineElement = 0; charLineElement < 8; charLineElement++){
-                for(uint8_t charLinePos = 0; charLinePos < 32; charLinePos++){
+                for(uint8_t charLinePos = 0; charLinePos < 8; charLinePos++){
                     if(((textScrollbox[charPos][charLineElement] >> charLinePos) & 0x01) == 0x01){
                         max7219b_set(charLinePos + charPos * 8 - posOffset + 8, charLineElement);
                         max7219b_out();
