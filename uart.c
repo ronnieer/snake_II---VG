@@ -1,6 +1,5 @@
 #include <avr/io.h>
 #include <stdio.h>
-
 #include <util/setbaud.h>
 
 void uart_init(void) 

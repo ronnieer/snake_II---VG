@@ -1,98 +1,11 @@
-#include <avr/io.h>
-#include <util/delay.h>
-#include <avr/interrupt.h>
-#include <stdio.h>
-#include <stdbool.h>
-#include <string.h>
-#include <math.h>
-#include <stdlib.h>
-#include "uart.h"
-#include "max72xx.h"
-#include "millis.h"
-#include "characters.h"
+#include "general.h"
 
 
-#define	SCL 5
-#define	SDA 3
-#define	CS 2
+unsigned char setSnakeLength = 10;      //SET SNAKE LENGTH TO WIN
 
-test = 0x0F;
-const brightness = 0x0A;
-const scanlimit = 0x0B;
-const decodeMode = 0x09;
-const shutdown = 0x0C;
-
-
-
-
-
-
-unsigned char setSnakeLength = 10;
-
-
-
-
-/*
-=====================================================================================================================================================
-========================  SNAKE'S BODY STRUCTURE DECLARATION  =======================================================================================
-=====================================================================================================================================================
-*/
-
-typedef struct{
-    unsigned char x;
-    unsigned char y;
-}snakePosition;
-
-/*
-=====================================================================================================================================================
-========================  SNAKE'S GAME STATUS CYCLE ENUMERATION  ====================================================================================
-=====================================================================================================================================================
-*/
-
-typedef enum{
-    PRE_GAME,
-    END_GAME,
-    RUN_GAME,
-    WIN_GAME
-}GameStatus;
-
-GameStatus gameStatus;
-
-/*
-=====================================================================================================================================================
-========================  SNAKE'S JOYSTICK POSITIONS ENUMERATION  ===================================================================================
-=====================================================================================================================================================
-*/
-
-typedef enum{
-    JOYSTICK_UP,
-    JOYSTICK_DOWN,
-    JOYSTICK_LEFT,
-    JOYSTICK_RIGHT
-}JoyStick;
-
-JoyStick joyStickPos;
-
-/*
-=====================================================================================================================================================
-========================  FUNCTIONS DECLARATION  ====================================================================================================
-=====================================================================================================================================================
-*/
 
 unsigned char snakeLength = 2;
 bool isBreakMessageFlag = false;
-
-void initPorts(void);
-void int1Interrupt(void);
-void int1InterruptOff(void);
-void int1InterruptOn(void);
-void snakesRandomFood(snakePosition snakePositions[128], unsigned char *randomFoodX, unsigned char *randomFoodY, unsigned char *isRandomFoodEaten);
-void readJoystick(void);
-void printText(char *string[40]);
-void clearMax7219(void);
-void enterpretJoystick(snakePosition snakePositions[128]);
-void snakeGraphics(snakePosition snakePositions[128], unsigned char *randomFoodX, unsigned char *randomFoodY, unsigned char *isRandomFoodEaten);
-void setupADC(void);
 
 /*
 =====================================================================================================================================================
@@ -102,8 +15,6 @@ void setupADC(void);
 
 
 int main(){
-
-    
     snakePosition snakePositions[128];
     initPorts();
     int1Interrupt();
@@ -162,9 +73,9 @@ int main(){
 */
 
         while(gameStatus == WIN_GAME){
-            printText(" WIN");
+            for(unsigned char i = 0; i < 2; i++) printText(" WIN");
             gameStatus = PRE_GAME;
-        }
+        }   
 
 /*
 -----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -175,39 +86,12 @@ int main(){
         isBreakMessageFlag = false;
         counter = 0;
         while(gameStatus == END_GAME){
-            printText(" END");
+            for(unsigned char i = 0; i < 2; i++) printText(" END");
             gameStatus = PRE_GAME;
         }        
 	}
 
 	return 0;
-}
-
-/*
-=====================================================================================================================================================
-========================  INT0 INTERRUPT  ===========================================================================================================
-=====================================================================================================================================================
-*/
-
-void int1Interrupt(void){
-    SREG &= ~0x80;
-    EICRA |= 0x0C;  //INTERRUPT 1, FALLING EDGE
-    EIMSK |= 0x02;  //EXTERNAL PIN INTERRUPT ENABLED
-    PCICR |= 0X02;  //PIN CHANGE ITERRUPT CONTROL REGISTER
-    PCIFR |= 0x02;
-    PCMSK1 |= 0x04; //PORTD BIT 5 = INT1
-    EIFR &= 0x01;
-    SREG |= 0x80;   //Global Interrupt ENA
-}
-
-void int1InterruptOff(void){
-    EIFR &= 0x01;
-    EIMSK &= ~0x02;
-}
-
-void int1InterruptOn(void){
-    EIMSK |= 0x02;
-    EIFR &= 0x01;
 }
 
 /*
@@ -254,15 +138,17 @@ void printText(char *string[40]){
                 for(uint8_t charLinePos = 0; charLinePos < 8; charLinePos++){
                     if(((textScrollbox[charPos][charLineElement] >> charLinePos) & 0x01) == 0x01){
                         max7219b_set(charLinePos + charPos * 8 - posOffset + 8, charLineElement);
-                        max7219b_out();
+                        //max7219b_out();
                     } 
                     else{ 
                         max7219b_clr(charLinePos + charPos * 8 - posOffset + 8, charLineElement);
-                        max7219b_out();
+                        //max7219b_out();
                     } 
                 }
             }
         }
+        max7219b_out();
+        _delay_ms(100);
         clearMax7219();
         posOffset++;
         if(isBreakMessageFlag == true){
@@ -278,9 +164,10 @@ void clearMax7219(void){
     for(unsigned char y = 0; y < 8; y++){
         for(unsigned x = 0; x < 16; x++){
             max7219b_clr(x, y);
-            max7219b_out();
+            //max7219b_out();
         }
     }
+    max7219b_out();
 }
 
 /*
@@ -318,16 +205,16 @@ void snakeGraphics(snakePosition snakePositions[128], unsigned char *randomFoodX
 
 /*
 -----------------------------------------------------------------------------------------------------------------------------------------------------
-------------------------  SET SNAKE HEAD COPY TO BODY SEGMENTS BY ITERATION  _-----------------------------------------------------------------------
+------------------------  SET SNAKE HEAD COPY TO BODY SEGMENTS ITERATION  ---------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 */
 
     unsigned char i;
-    max7219b_set(snakePositions[0].x, snakePositions[0].y);
-    max7219b_out();  
+    max7219b_set(snakePositions[0].x, snakePositions[0].y); 
     for(i = 0; i < snakeLength; i++){
         snakePositions[snakeLength - i] = snakePositions[snakeLength - i - 1];       
     }
+    max7219b_out(); 
 
 /*
 -----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -421,19 +308,6 @@ void snakesRandomFood(snakePosition snakePositions[128], unsigned char *randomFo
 
 /*
 =====================================================================================================================================================
-========================  INIT PORT  ================================================================================================================
-=====================================================================================================================================================
-*/
-
-void initPorts(void)
-{
-    DDRB = 0xFF;  
-    DDRD = 0x01;
-    PORTD |= 0x08;         
-}
-
-/*
-=====================================================================================================================================================
 ========================  READ JOYSTICK  ============================================================================================================
 =====================================================================================================================================================
 */
@@ -475,6 +349,46 @@ void readJoystick(void)
 
 /*
 =====================================================================================================================================================
+========================  INT0 INTERRUPT  ===========================================================================================================
+=====================================================================================================================================================
+*/
+
+void int1Interrupt(void){
+    SREG &= ~0x80;
+    EICRA |= 0x0C;  //INTERRUPT 1, FALLING EDGE
+    EIMSK |= 0x02;  //EXTERNAL PIN INTERRUPT ENABLED
+    PCICR |= 0X02;  //PIN CHANGE ITERRUPT CONTROL REGISTER
+    PCIFR |= 0x02;
+    PCMSK1 |= 0x04; //PORTD BIT 5 = INT1
+    EIFR &= 0x01;
+    SREG |= 0x80;   //Global Interrupt ENA
+}
+
+void int1InterruptOff(void){
+    EIFR &= 0x01;
+    EIMSK &= ~0x02;
+}
+
+void int1InterruptOn(void){
+    EIMSK |= 0x02;
+    EIFR &= 0x01;
+}
+
+/*
+=====================================================================================================================================================
+========================  INIT PORT  ================================================================================================================
+=====================================================================================================================================================
+*/
+
+void initPorts(void)
+{
+    DDRB = 0xFF;  
+    DDRD = 0x01;
+    PORTD |= 0x08;         
+}
+
+/*
+=====================================================================================================================================================
 ========================  INTERRUPT ROTINE  =========================================================================================================
 =====================================================================================================================================================
 */
@@ -488,3 +402,4 @@ ISR(INT1_vect){
     snakeLength = 2;
     EIFR &= 0x01;
 }
+
