@@ -1,11 +1,11 @@
 #include "general.h"
 
-
+long currentValue = 0;
 unsigned char setSnakeLength = 10;      //SET SNAKE LENGTH TO WIN
-
-
 unsigned char snakeLength = 2;
 bool isBreakMessageFlag = false;
+GameStatus statusOfGame;
+JoyStick joyStickPos;
 
 /*
 =====================================================================================================================================================
@@ -22,8 +22,9 @@ int main(){
 	init_serial();
 	max7219_init();
     int cnt = 0;
-    gameStatus = PRE_GAME;
+    statusOfGame = PRE_GAME;
 	while(true){
+
 
 /*
 -----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -31,7 +32,7 @@ int main(){
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 */
 
-        while(gameStatus == PRE_GAME){
+        while(statusOfGame == PRE_GAME){
             printText(" GAME");
         }
 
@@ -56,7 +57,7 @@ int main(){
 
         while(true){
             snakeGraphics(snakePositions, &randomFoodX, &randomFoodY, &isRandomFoodEaten);
-            if(gameStatus == END_GAME || gameStatus == WIN_GAME) break;
+            if(statusOfGame == END_GAME || statusOfGame == WIN_GAME) break;
             snakesRandomFood(snakePositions, &randomFoodX, &randomFoodY, &isRandomFoodEaten);
             max7219b_out();      
             _delay_ms(350);
@@ -72,9 +73,9 @@ int main(){
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 */
 
-        while(gameStatus == WIN_GAME){
+        while(statusOfGame == WIN_GAME){
             for(unsigned char i = 0; i < 2; i++) printText(" WIN");
-            gameStatus = PRE_GAME;
+            statusOfGame = PRE_GAME;
         }   
 
 /*
@@ -85,13 +86,190 @@ int main(){
 
         isBreakMessageFlag = false;
         counter = 0;
-        while(gameStatus == END_GAME){
+        while(statusOfGame == END_GAME){
             for(unsigned char i = 0; i < 2; i++) printText(" END");
-            gameStatus = PRE_GAME;
+            statusOfGame = PRE_GAME;
         }        
 	}
 
 	return 0;
+}
+
+/*
+=====================================================================================================================================================
+========================  JOYSTICK MOVEMENTS  =======================================================================================================
+=====================================================================================================================================================
+*/
+
+void enterpretJoystick(snakePosition snakePositions[128]){
+
+    if(joyStickPos == JOYSTICK_RIGHT){
+        snakePositions[0].x++;
+    } 
+
+    if(joyStickPos == JOYSTICK_LEFT){
+        snakePositions[0].x--;
+    }
+
+    if(joyStickPos == JOYSTICK_DOWN){
+        snakePositions[0].y++;
+    }
+
+    if(joyStickPos == JOYSTICK_UP){
+        snakePositions[0].y--;
+    }    
+}
+
+/*
+=====================================================================================================================================================
+========================  SNAKE BODY GRAPHICS  ======================================================================================================
+=====================================================================================================================================================
+*/
+
+void snakeGraphics(snakePosition snakePositions[128], unsigned char *randomFoodX, unsigned char *randomFoodY, unsigned char *isRandomFoodEaten){
+
+/*
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------  SET SNAKE HEAD COPY TO BODY SEGMENTS ITERATION  ---------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+*/
+
+    unsigned char i;
+    max7219b_set(snakePositions[0].x, snakePositions[0].y); 
+    for(i = 0; i < snakeLength; i++){
+        snakePositions[snakeLength - i] = snakePositions[snakeLength - i - 1];       
+    }
+    max7219b_out(); 
+
+/*
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------  ADD SEGMENTS WHEN EATING  -------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+*/
+
+    if((snakePositions[0].x == *randomFoodX) && (snakePositions[0].y == *randomFoodY) && (*isRandomFoodEaten == 0)){
+        snakeLength++;
+        if(snakeLength > setSnakeLength){
+            clearMax7219();
+            statusOfGame = WIN_GAME;
+            return;
+        }       
+        max7219b_set(snakePositions[0].x, snakePositions[0].y);
+        max7219b_out();                  
+        *isRandomFoodEaten = 1; 
+    }
+
+
+/*
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------  SET END OF SNAKE'S TAIL  --------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+*/
+
+    max7219b_clr(snakePositions[snakeLength].x, snakePositions[snakeLength].y);
+    max7219b_out();     
+
+/*
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------  CHECK FOR HEAD NOT CROSSING BODY  -----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+*/    
+
+    for(unsigned char snakeBodyIndex = 2; snakeBodyIndex < snakeLength; snakeBodyIndex++){
+        if((snakePositions[snakeBodyIndex].x == snakePositions[0].x) && (snakePositions[snakeBodyIndex].y == snakePositions[0].y)){
+            clearMax7219();
+            statusOfGame = END_GAME;
+            return;
+        }
+        else if((snakePositions[0].x == snakePositions[3].x) && (snakePositions[0].y == snakePositions[3].y)){
+            clearMax7219();
+            statusOfGame = END_GAME;
+            return;            
+        }
+    }
+
+/*
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------  CHECK FOR HEAD NOT LEAVING SCREEN  ----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+*/  
+
+    if(!(snakePositions[0].x >= 0 && snakePositions[0].x <= 15) || !(snakePositions[0].y >= 0 && snakePositions[0].y <= 7)){
+        clearMax7219();
+        statusOfGame = END_GAME;
+    }
+}
+
+/*
+=====================================================================================================================================================
+========================  SNAKE FOOD GRAPHICS  ======================================================================================================
+=====================================================================================================================================================
+*/
+
+void snakesRandomFood(snakePosition snakePositions[128], unsigned char *randomFoodX, unsigned char *randomFoodY, unsigned char *isRandomFoodEaten){
+    if(*isRandomFoodEaten){   
+        bool isFoodIsAtSnake = true;
+        unsigned char cnt;
+        while(true){
+            *randomFoodX = rand() % 16;
+            *randomFoodY = rand() % 8;
+            for(cnt = 0; cnt < snakeLength; cnt++){
+                if((snakePositions[cnt].x == *randomFoodX) && (snakePositions[cnt].y == *randomFoodY)) 
+                break;
+            }
+            if(cnt == snakeLength) break;
+        }
+        max7219b_set(*randomFoodX, *randomFoodY);
+        max7219b_out();
+        _delay_ms(70);
+        max7219b_clr(*randomFoodX, *randomFoodY);
+        max7219b_out();        
+        _delay_ms(70);
+        max7219b_set(*randomFoodX, *randomFoodY);
+        max7219b_out();     
+        *isRandomFoodEaten = 0;
+    }
+}
+
+/*
+=====================================================================================================================================================
+========================  READ JOYSTICK  ============================================================================================================
+=====================================================================================================================================================
+*/
+
+void readJoystick(void)
+{
+    unsigned char horisontalLocal, vericalLocal;
+    ADCSRA = 0xE7;                                      // ADEN = 1, ADC ENABLED// ADSC = 1, ADC START CONVESION// ADATE = 1, ADC AUTO TRIGGER ENABLED// ADIF = 0, ADC INTERRUPT FLAG//
+                                                        // ADIE = 0, ADC INTERRUPT DISABLED// ADPS0:2 = 1, ADC PRESCALER DIVISION FACTOR = 128  
+    ADMUX = 0x00;
+    ADMUX |= 1 << 5;                                    // ADC OUTPUT REGISTER LEFT ADJUSTED
+    ADMUX |= 1 << 6;                                    // ADC HIGHREF VCC
+  
+    while(true){ 
+        if((ADCSRA & 0x10) == 0x10){
+            horisontalLocal = ADCH;                     // RETURN RESULT WHEN INTERUPT FLAG
+            break;
+        }
+    }                                                    
+    ADCSRA = 0xE7;                                      // ADEN = 1, ADC ENABLED// ADSC = 1, ADC START CONVESION// ADATE = 1, ADC AUTO TRIGGER ENABLED// ADIF = 0, ADC INTERRUPT FLAG//
+               
+    _delay_ms(1);                                       // ADIE = 0, ADC INTERRUPT DISABLED// ADPS0:2 = 1, ADC PRESCALER DIVISION FACTOR = 128  
+    ADMUX = 0x01;
+    ADMUX |= 1 << 5;                                    // ADC OUTPUT REGISTER LEFT ADJUSTED
+    ADMUX |= 1 << 6;                                    // ADC HIGHREF VCC
+
+    while(true){ 
+        if((ADCSRA & 0x10) == 0x10){
+            vericalLocal = ADCH;                        // RETURN RESULT WHEN INTERUPT FLAG
+            break;
+        }
+    }
+
+    if(horisontalLocal < 43 && (vericalLocal >= 43 && vericalLocal <= 213)) joyStickPos = JOYSTICK_LEFT;
+    else if(horisontalLocal > 213 && (vericalLocal >= 43 && vericalLocal <= 213)) joyStickPos = JOYSTICK_RIGHT;
+    else if(vericalLocal < 43 && (horisontalLocal >= 43 && horisontalLocal <= 213)) joyStickPos = JOYSTICK_UP;
+    else if(vericalLocal > 213 && (horisontalLocal >= 43 && horisontalLocal <= 213)) joyStickPos = JOYSTICK_DOWN;
 }
 
 /*
@@ -172,234 +350,16 @@ void clearMax7219(void){
 
 /*
 =====================================================================================================================================================
-========================  JOYSTICK MOVEMENTS  =======================================================================================================
-=====================================================================================================================================================
-*/
-
-void enterpretJoystick(snakePosition snakePositions[128]){
-
-    if(joyStickPos == JOYSTICK_RIGHT){
-        snakePositions[0].x++;
-    } 
-
-    if(joyStickPos == JOYSTICK_LEFT){
-        snakePositions[0].x--;
-    }
-
-    if(joyStickPos == JOYSTICK_DOWN){
-        snakePositions[0].y++;
-    }
-
-    if(joyStickPos == JOYSTICK_UP){
-        snakePositions[0].y--;
-    }    
-}
-
-/*
-=====================================================================================================================================================
-========================  SNAKE BODY GRAPHICS  ======================================================================================================
-=====================================================================================================================================================
-*/
-
-void snakeGraphics(snakePosition snakePositions[128], unsigned char *randomFoodX, unsigned char *randomFoodY, unsigned char *isRandomFoodEaten){
-
-/*
------------------------------------------------------------------------------------------------------------------------------------------------------
-------------------------  SET SNAKE HEAD COPY TO BODY SEGMENTS ITERATION  ---------------------------------------------------------------------------
------------------------------------------------------------------------------------------------------------------------------------------------------
-*/
-
-    unsigned char i;
-    max7219b_set(snakePositions[0].x, snakePositions[0].y); 
-    for(i = 0; i < snakeLength; i++){
-        snakePositions[snakeLength - i] = snakePositions[snakeLength - i - 1];       
-    }
-    max7219b_out(); 
-
-/*
------------------------------------------------------------------------------------------------------------------------------------------------------
-------------------------  ADD SEGMENTS WHEN EATING  -------------------------------------------------------------------------------------------------
------------------------------------------------------------------------------------------------------------------------------------------------------
-*/
-
-    if((snakePositions[0].x == *randomFoodX) && (snakePositions[0].y == *randomFoodY) && (*isRandomFoodEaten == 0)){
-        snakeLength++;
-        if(snakeLength > setSnakeLength){
-            clearMax7219();
-            gameStatus = WIN_GAME;
-            return;
-        }       
-        max7219b_set(snakePositions[0].x, snakePositions[0].y);
-        max7219b_out();                  
-        *isRandomFoodEaten = 1; 
-    }
-
-
-/*
------------------------------------------------------------------------------------------------------------------------------------------------------
-------------------------  SET END OF SNAKE'S TAIL  --------------------------------------------------------------------------------------------------
------------------------------------------------------------------------------------------------------------------------------------------------------
-*/
-
-    max7219b_clr(snakePositions[snakeLength].x, snakePositions[snakeLength].y);
-    max7219b_out();     
-
-/*
------------------------------------------------------------------------------------------------------------------------------------------------------
-------------------------  CHECK FOR HEAD NOT CROSSING BODY  -----------------------------------------------------------------------------------------
------------------------------------------------------------------------------------------------------------------------------------------------------
-*/    
-
-    for(unsigned char snakeBodyIndex = 2; snakeBodyIndex < snakeLength; snakeBodyIndex++){
-        if((snakePositions[snakeBodyIndex].x == snakePositions[0].x) && (snakePositions[snakeBodyIndex].y == snakePositions[0].y)){
-            clearMax7219();
-            gameStatus = END_GAME;
-            return;
-        }
-        else if((snakePositions[0].x == snakePositions[3].x) && (snakePositions[0].y == snakePositions[3].y)){
-            clearMax7219();
-            gameStatus = END_GAME;
-            return;            
-        }
-    }
-
-/*
------------------------------------------------------------------------------------------------------------------------------------------------------
-------------------------  CHECK FOR HEAD NOT LEAVING SCREEN  ----------------------------------------------------------------------------------------
------------------------------------------------------------------------------------------------------------------------------------------------------
-*/  
-
-    if(!(snakePositions[0].x >= 0 && snakePositions[0].x <= 15) || !(snakePositions[0].y >= 0 && snakePositions[0].y <= 7)){
-        clearMax7219();
-        gameStatus = END_GAME;
-    }
-}
-
-/*
-=====================================================================================================================================================
-========================  SNAKE FOOD GRAPHICS  ======================================================================================================
-=====================================================================================================================================================
-*/
-
-void snakesRandomFood(snakePosition snakePositions[128], unsigned char *randomFoodX, unsigned char *randomFoodY, unsigned char *isRandomFoodEaten){
-    if(*isRandomFoodEaten){   
-        bool isFoodIsAtSnake = true;
-        unsigned char cnt;
-        while(true){
-            *randomFoodX = rand() % 16;
-            *randomFoodY = rand() % 8;
-            for(cnt = 0; cnt < snakeLength; cnt++){
-                if((snakePositions[cnt].x == *randomFoodX) && (snakePositions[cnt].y == *randomFoodY)) 
-                break;
-            }
-            if(cnt == snakeLength) break;
-        }
-        max7219b_set(*randomFoodX, *randomFoodY);
-        max7219b_out();
-        _delay_ms(70);
-        max7219b_clr(*randomFoodX, *randomFoodY);
-        max7219b_out();        
-        _delay_ms(70);
-        max7219b_set(*randomFoodX, *randomFoodY);
-        max7219b_out();     
-        *isRandomFoodEaten = 0;
-    }
-}
-
-/*
-=====================================================================================================================================================
-========================  READ JOYSTICK  ============================================================================================================
-=====================================================================================================================================================
-*/
-
-void readJoystick(void)
-{
-    unsigned char horisontalLocal, vericalLocal;
-    ADCSRA = 0xE7;                                      // ADEN = 1, ADC ENABLED// ADSC = 1, ADC START CONVESION// ADATE = 1, ADC AUTO TRIGGER ENABLED// ADIF = 0, ADC INTERRUPT FLAG//
-                                                        // ADIE = 0, ADC INTERRUPT DISABLED// ADPS0:2 = 1, ADC PRESCALER DIVISION FACTOR = 128  
-    ADMUX = 0x00;
-    ADMUX |= 1 << 5;                                    // ADC OUTPUT REGISTER LEFT ADJUSTED
-    ADMUX |= 1 << 6;                                    // ADC HIGHREF VCC
-  
-    while(true){ 
-        if((ADCSRA & 0x10) == 0x10){
-            horisontalLocal = ADCH;                     // RETURN RESULT WHEN INTERUPT FLAG
-            break;
-        }
-    }                                                    
-    ADCSRA = 0xE7;                                      // ADEN = 1, ADC ENABLED// ADSC = 1, ADC START CONVESION// ADATE = 1, ADC AUTO TRIGGER ENABLED// ADIF = 0, ADC INTERRUPT FLAG//
-               
-    _delay_ms(1);                                       // ADIE = 0, ADC INTERRUPT DISABLED// ADPS0:2 = 1, ADC PRESCALER DIVISION FACTOR = 128  
-    ADMUX = 0x01;
-    ADMUX |= 1 << 5;                                    // ADC OUTPUT REGISTER LEFT ADJUSTED
-    ADMUX |= 1 << 6;                                    // ADC HIGHREF VCC
-
-    while(true){ 
-        if((ADCSRA & 0x10) == 0x10){
-            vericalLocal = ADCH;                        // RETURN RESULT WHEN INTERUPT FLAG
-            break;
-        }
-    }
-
-    if(horisontalLocal < 43 && (vericalLocal >= 43 && vericalLocal <= 213)) joyStickPos = JOYSTICK_LEFT;
-    else if(horisontalLocal > 213 && (vericalLocal >= 43 && vericalLocal <= 213)) joyStickPos = JOYSTICK_RIGHT;
-    else if(vericalLocal < 43 && (horisontalLocal >= 43 && horisontalLocal <= 213)) joyStickPos = JOYSTICK_UP;
-    else if(vericalLocal > 213 && (horisontalLocal >= 43 && horisontalLocal <= 213)) joyStickPos = JOYSTICK_DOWN;
-}
-
-/*
-=====================================================================================================================================================
-========================  INT0 INTERRUPT  ===========================================================================================================
-=====================================================================================================================================================
-*/
-
-void int1Interrupt(void){
-    SREG &= ~0x80;
-    EICRA |= 0x0C;  //INTERRUPT 1, FALLING EDGE
-    EIMSK |= 0x02;  //EXTERNAL PIN INTERRUPT ENABLED
-    PCICR |= 0X02;  //PIN CHANGE ITERRUPT CONTROL REGISTER
-    PCIFR |= 0x02;
-    PCMSK1 |= 0x04; //PORTD BIT 5 = INT1
-    EIFR &= 0x01;
-    SREG |= 0x80;   //Global Interrupt ENA
-}
-
-void int1InterruptOff(void){
-    EIFR &= 0x01;
-    EIMSK &= ~0x02;
-}
-
-void int1InterruptOn(void){
-    EIMSK |= 0x02;
-    EIFR &= 0x01;
-}
-
-/*
-=====================================================================================================================================================
-========================  INIT PORT  ================================================================================================================
-=====================================================================================================================================================
-*/
-
-void initPorts(void)
-{
-    DDRB = 0xFF;  
-    DDRD = 0x01;
-    PORTD |= 0x08;         
-}
-
-/*
-=====================================================================================================================================================
 ========================  INTERRUPT ROTINE  =========================================================================================================
 =====================================================================================================================================================
 */
 
 ISR(INT1_vect){
-    if(gameStatus == PRE_GAME){
+    if(statusOfGame == PRE_GAME){
         clearMax7219();
         isBreakMessageFlag = true;
     } 
-    gameStatus = RUN_GAME;
+    statusOfGame = RUN_GAME;
     snakeLength = 2;
     EIFR &= 0x01;
 }
-

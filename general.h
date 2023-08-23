@@ -8,11 +8,9 @@
 #include <stdbool.h>
 #include <string.h>
 #include <math.h>
-#include <stdlib.h>
 #include "uart.h"
 #include "max72xx.h"
 #include "millis.h"
-#include "characters.h"
 
 
 #define	SCL 5
@@ -43,7 +41,7 @@ typedef enum{
     WIN_GAME
 }GameStatus;
 
-GameStatus gameStatus;
+extern GameStatus statusOfGame;
 
 /*
 =====================================================================================================================================================
@@ -58,7 +56,7 @@ typedef enum{
     JOYSTICK_RIGHT
 }JoyStick;
 
-JoyStick joyStickPos;
+extern JoyStick joyStickPos;
 
 /*
 =====================================================================================================================================================
@@ -66,16 +64,23 @@ JoyStick joyStickPos;
 =====================================================================================================================================================
 */
 
+extern bool isBreakMessageFlag;
+extern unsigned char snakeLength;
+
+extern const unsigned char myCharacters[128][8];
 void initPorts(void);
 void int1Interrupt(void);
 void int1InterruptOff(void);
 void int1InterruptOn(void);
 void snakesRandomFood(snakePosition snakePositions[128], unsigned char *randomFoodX, unsigned char *randomFoodY, unsigned char *isRandomFoodEaten);
 void readJoystick(void);
+uint16_t randNumber(unsigned char range, unsigned char offset);
 void printText(char *string[40]);
 void clearMax7219(void);
 void enterpretJoystick(snakePosition snakePositions[128]);
 void snakeGraphics(snakePosition snakePositions[128], unsigned char *randomFoodX, unsigned char *randomFoodY, unsigned char *isRandomFoodEaten);
 void setupADC(void);
+
+void initPorts(void);
 
 #endif
