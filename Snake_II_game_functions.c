@@ -1,18 +1,24 @@
 #include "general.h"
 
+
+
+unsigned char setSnakeLength = 10;      //SET SNAKE LENGTH TO ADJUST LEVEL OF DIDDICULTY. A LENGTH BETWEEN 5 AND 15 WILL GIVE A PLESSANT GAME
+
+
+
 long currentValue = 0;
-unsigned char setSnakeLength = 10;      //SET SNAKE LENGTH TO WIN
 unsigned char snakeLength = 2;
 bool isBreakMessageFlag = false;
 GameStatus statusOfGame;
 JoyStick joyStickPos;
+
+void clearMax7219(void);
 
 /*
 =====================================================================================================================================================
 ========================  SNAKE II GAME MAIN FUNCTION  ==============================================================================================
 =====================================================================================================================================================
 */
-
 
 int main(){
     snakePosition snakePositions[128];
@@ -24,7 +30,6 @@ int main(){
     int cnt = 0;
     statusOfGame = PRE_GAME;
 	while(true){
-
 
 /*
 -----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -97,31 +102,6 @@ int main(){
 
 /*
 =====================================================================================================================================================
-========================  JOYSTICK MOVEMENTS  =======================================================================================================
-=====================================================================================================================================================
-*/
-
-void enterpretJoystick(snakePosition snakePositions[128]){
-
-    if(joyStickPos == JOYSTICK_RIGHT){
-        snakePositions[0].x++;
-    } 
-
-    if(joyStickPos == JOYSTICK_LEFT){
-        snakePositions[0].x--;
-    }
-
-    if(joyStickPos == JOYSTICK_DOWN){
-        snakePositions[0].y++;
-    }
-
-    if(joyStickPos == JOYSTICK_UP){
-        snakePositions[0].y--;
-    }    
-}
-
-/*
-=====================================================================================================================================================
 ========================  SNAKE BODY GRAPHICS  ======================================================================================================
 =====================================================================================================================================================
 */
@@ -162,7 +142,7 @@ void snakeGraphics(snakePosition snakePositions[128], unsigned char *randomFoodX
 
 /*
 -----------------------------------------------------------------------------------------------------------------------------------------------------
-------------------------  SET END OF SNAKE'S TAIL  --------------------------------------------------------------------------------------------------
+------------------------  CLEAR END OF SNAKE'S TAIL  ------------------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 */
 
@@ -229,123 +209,6 @@ void snakesRandomFood(snakePosition snakePositions[128], unsigned char *randomFo
         max7219b_out();     
         *isRandomFoodEaten = 0;
     }
-}
-
-/*
-=====================================================================================================================================================
-========================  READ JOYSTICK  ============================================================================================================
-=====================================================================================================================================================
-*/
-
-void readJoystick(void)
-{
-    unsigned char horisontalLocal, vericalLocal;
-    ADCSRA = 0xE7;                                      // ADEN = 1, ADC ENABLED// ADSC = 1, ADC START CONVESION// ADATE = 1, ADC AUTO TRIGGER ENABLED// ADIF = 0, ADC INTERRUPT FLAG//
-                                                        // ADIE = 0, ADC INTERRUPT DISABLED// ADPS0:2 = 1, ADC PRESCALER DIVISION FACTOR = 128  
-    ADMUX = 0x00;
-    ADMUX |= 1 << 5;                                    // ADC OUTPUT REGISTER LEFT ADJUSTED
-    ADMUX |= 1 << 6;                                    // ADC HIGHREF VCC
-  
-    while(true){ 
-        if((ADCSRA & 0x10) == 0x10){
-            horisontalLocal = ADCH;                     // RETURN RESULT WHEN INTERUPT FLAG
-            break;
-        }
-    }                                                    
-    ADCSRA = 0xE7;                                      // ADEN = 1, ADC ENABLED// ADSC = 1, ADC START CONVESION// ADATE = 1, ADC AUTO TRIGGER ENABLED// ADIF = 0, ADC INTERRUPT FLAG//
-               
-    _delay_ms(1);                                       // ADIE = 0, ADC INTERRUPT DISABLED// ADPS0:2 = 1, ADC PRESCALER DIVISION FACTOR = 128  
-    ADMUX = 0x01;
-    ADMUX |= 1 << 5;                                    // ADC OUTPUT REGISTER LEFT ADJUSTED
-    ADMUX |= 1 << 6;                                    // ADC HIGHREF VCC
-
-    while(true){ 
-        if((ADCSRA & 0x10) == 0x10){
-            vericalLocal = ADCH;                        // RETURN RESULT WHEN INTERUPT FLAG
-            break;
-        }
-    }
-
-    if(horisontalLocal < 43 && (vericalLocal >= 43 && vericalLocal <= 213)) joyStickPos = JOYSTICK_LEFT;
-    else if(horisontalLocal > 213 && (vericalLocal >= 43 && vericalLocal <= 213)) joyStickPos = JOYSTICK_RIGHT;
-    else if(vericalLocal < 43 && (horisontalLocal >= 43 && horisontalLocal <= 213)) joyStickPos = JOYSTICK_UP;
-    else if(vericalLocal > 213 && (horisontalLocal >= 43 && horisontalLocal <= 213)) joyStickPos = JOYSTICK_DOWN;
-}
-
-/*
-=====================================================================================================================================================
-========================  TEXT SCROLLERS  ============================================================================================================
-=====================================================================================================================================================
-*/
-
-void printText(char *string[40]){
-    char textGame[40];
-    char textScrollbox[40][8];
-
-    for(uint8_t charPos = 0; charPos < 40; charPos++){
-        for(uint8_t charLineElement = 0; charLineElement < 8; charLineElement++){
-            char character = textGame[charPos];
-            textScrollbox[charPos][charLineElement] = 0x00;
-        }
-    }    
-
-    unsigned char posCnt = 0;
-    unsigned char posOffset = 0;
-    unsigned char strLength = strlen(string);
-    bool isStartTerm = true;
-    EIFR &= 0x01;
-
-        if(isStartTerm == true || posOffset >= 8 * ((strlen(string)) + 1)){
-            
-            isStartTerm = false;
-            posOffset = 0;
-            strcpy(textGame, string);
-            
-            for(uint8_t charPos = 0; charPos < strlen(textGame); charPos++){
-                for(uint8_t charLineElement = 0; charLineElement < 8; charLineElement++){
-                    char character = textGame[charPos];
-                    textScrollbox[charPos][charLineElement] = myCharacters[character][charLineElement];           
-                }
-            }
-        }
-
-    while(true){
-        
-        for(uint8_t charPos = 0; charPos < strlen(textGame); charPos++){
-            for(uint8_t charLineElement = 0; charLineElement < 8; charLineElement++){
-                for(uint8_t charLinePos = 0; charLinePos < 8; charLinePos++){
-                    if(((textScrollbox[charPos][charLineElement] >> charLinePos) & 0x01) == 0x01){
-                        max7219b_set(charLinePos + charPos * 8 - posOffset + 8, charLineElement);
-                        //max7219b_out();
-                    } 
-                    else{ 
-                        max7219b_clr(charLinePos + charPos * 8 - posOffset + 8, charLineElement);
-                        //max7219b_out();
-                    } 
-                }
-            }
-        }
-        max7219b_out();
-        _delay_ms(100);
-        clearMax7219();
-        posOffset++;
-        if(isBreakMessageFlag == true){
-            isBreakMessageFlag = false;
-            break;
-        }
-        if(posOffset >= 8 * (strLength + 1)) break;
-    }
-
-}
-
-void clearMax7219(void){
-    for(unsigned char y = 0; y < 8; y++){
-        for(unsigned x = 0; x < 16; x++){
-            max7219b_clr(x, y);
-            //max7219b_out();
-        }
-    }
-    max7219b_out();
 }
 
 /*

@@ -66,8 +66,8 @@ extern JoyStick joyStickPos;
 
 extern bool isBreakMessageFlag;
 extern unsigned char snakeLength;
-
 extern const unsigned char myCharacters[128][8];
+
 void initPorts(void);
 void int1Interrupt(void);
 void int1InterruptOff(void);
@@ -75,8 +75,8 @@ void int1InterruptOn(void);
 void snakesRandomFood(snakePosition snakePositions[128], unsigned char *randomFoodX, unsigned char *randomFoodY, unsigned char *isRandomFoodEaten);
 void readJoystick(void);
 uint16_t randNumber(unsigned char range, unsigned char offset);
-void printText(char *string[40]);
-void clearMax7219(void);
+void printText(char *string[10]);
+extern void clearMax7219(void);
 void enterpretJoystick(snakePosition snakePositions[128]);
 void snakeGraphics(snakePosition snakePositions[128], unsigned char *randomFoodX, unsigned char *randomFoodY, unsigned char *isRandomFoodEaten);
 void setupADC(void);
