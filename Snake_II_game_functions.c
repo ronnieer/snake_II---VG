@@ -79,7 +79,7 @@ int main(){
 */
 
         while(statusOfGame == WIN_GAME){
-            for(unsigned char i = 0; i < 2; i++) printText(" WIN");
+            for(unsigned char i = 0; i < 2; i++) printText("WIN");
             statusOfGame = PRE_GAME;
         }   
 
@@ -92,7 +92,7 @@ int main(){
         isBreakMessageFlag = false;
         counter = 0;
         while(statusOfGame == END_GAME){
-            for(unsigned char i = 0; i < 2; i++) printText(" END");
+            for(unsigned char i = 0; i < 2; i++) printText("END");
             statusOfGame = PRE_GAME;
         }        
 	}

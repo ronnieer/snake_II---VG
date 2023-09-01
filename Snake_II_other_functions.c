@@ -28,7 +28,6 @@ void printText(char *string[40]){
             isStartTerm = false;
             posOffset = 0;
             strcpy(textGame, string);
-            
             for(uint8_t charPos = 0; charPos < strlen(textGame); charPos++){
                 for(uint8_t charLineElement = 0; charLineElement < 8; charLineElement++){
                     char character = textGame[charPos];
