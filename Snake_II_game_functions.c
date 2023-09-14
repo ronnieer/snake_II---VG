@@ -25,7 +25,7 @@ int main(){
     initPorts();
     int1Interrupt();
     sei();  
-	init_serial();
+	//init_serial();
 	max7219_init();
     int cnt = 0;
     statusOfGame = PRE_GAME;
