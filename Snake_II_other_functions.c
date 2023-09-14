@@ -149,12 +149,9 @@ void readJoystick(void)
 
 void int1Interrupt(void){
     SREG &= ~0x80;
-    EICRA |= 0x0C;  //INTERRUPT 1, FALLING EDGE
-    EIMSK |= 0x02;  //EXTERNAL PIN INTERRUPT ENABLED
-    PCICR |= 0X02;  //PIN CHANGE ITERRUPT CONTROL REGISTER
-    PCIFR |= 0x02;
-    PCMSK1 |= 0x04; //PORTD BIT 5 = INT1
-    EIFR &= 0x01;
+    EICRA |= 0x02;  //INTERRUPT 0, FALLING EDGE
+    EIMSK |= 0x01;  //EXTERNAL PIN INTERRUPT ENABLED IN0 (PORTD 2)
+    EIFR &= 0x02;   //CLEAR INT0 FLAG
     SREG |= 0x80;   //Global Interrupt ENA
 }
 
@@ -177,6 +174,6 @@ void int1InterruptOn(void){
 void initPorts(void){
     DDRB = 0xFF;  
     DDRD = 0x01;
-    PORTD |= 0x08;         
+    PORTD |= 0x04;         
 }
 

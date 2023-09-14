@@ -11,7 +11,7 @@ LDFLAGS=-mmcu=$(MCU)
 PORT=\\\\.\\COM3
 BIN=avrdemo
 OUT=${BIN}.hex
-SOURCES = Snake_II_game_functions.c Snake_II_other_functions.c characters.c max72xx.c uart.c millis.c
+SOURCES = Snake_II_game_functions.c Snake_II_other_functions.c characters.c max72xx.c uart.c
 
 DEBUG?=1
 

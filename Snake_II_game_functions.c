@@ -217,7 +217,7 @@ void snakesRandomFood(snakePosition snakePositions[128], unsigned char *randomFo
 =====================================================================================================================================================
 */
 
-ISR(INT1_vect){
+ISR(INT0_vect){
     if(statusOfGame == PRE_GAME){
         clearMax7219();
         isBreakMessageFlag = true;

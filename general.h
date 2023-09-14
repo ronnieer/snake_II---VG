@@ -10,12 +10,11 @@
 #include <math.h>
 #include "uart.h"
 #include "max72xx.h"
-#include "millis.h"
-
 
 #define	SCL 5
 #define	SDA 3
 #define	CS 2
+#define SW 2
 
 /*
 =====================================================================================================================================================
